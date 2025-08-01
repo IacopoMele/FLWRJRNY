@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Mappa Interattiva per Wix</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    html, body, #map {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+    }
+    .leaflet-popup-content input,
+    .leaflet-popup-content button {
+      width: 100%;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const map = L.map('map').setView([41.9, 12.5], 6); // Italia
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    function sendMarkerToWix(name, lat, lng) {
+      const markerData = { type: "new-marker", name, lat, lng };
+      window.parent.postMessage(markerData, "*");
+    }
+
+    function addMarker(name, lat, lng) {
+      L.marker([lat, lng]).addTo(map).bindPopup(`<strong>${name}</strong>`).openPopup();
+    }
+
+    map.on('click', e => {
+      const popup = L.popup()
+        .setLatLng(e.latlng)
+        .setContent(`
+          <input id="markerName" placeholder="Nome elemento" />
+          <button onclick="saveMarker(${e.latlng.lat}, ${e.latlng.lng})">Salva</button>
+        `)
+        .openOn(map);
+    });
+
+    window.saveMarker = function(lat, lng) {
+      const name = document.getElementById('markerName').value.trim();
+      if (!name) return alert("Inserisci un nome!");
+      addMarker(name, lat, lng);
+      sendMarkerToWix(name, lat, lng);
+      map.closePopup();
+    };
+
+    window.addEventListener("message", event => {
+      if (event.data.type === "load-markers" && Array.isArray(event.data.markers)) {
+        event.data.markers.forEach(m => addMarker(m.name, m.lat, m.lng));
+      }
+    }, false);
+  </script>
+</body>
+</html>
